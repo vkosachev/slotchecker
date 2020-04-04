@@ -9,12 +9,13 @@ import (
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+	log "github.com/sirupsen/logrus"
+
 )
 
 type DayList []struct {
@@ -119,7 +120,7 @@ func notifySubscribers(chatIDS [] int64, message string) error {
 			return errors.New("unexpected status" + res.Status)
 		}
 	}
-	return errors.New("unexpected behaviour")
+	return nil
 }
 
 func getSubscribers() ( []int64, error) {
@@ -159,7 +160,7 @@ func getSubscribers() ( []int64, error) {
 func getSuccessMessage(numslots int) string {
 	var message strings.Builder
 	message.WriteString("WE HAVE OPEN SLOT(S)[")
-	message.WriteString(fmt.Sprintf("%s", numslots))
+	message.WriteString(fmt.Sprintf("%v", numslots))
 	message.WriteString("] ! Act quickly!")
 
 	return message.String()
@@ -177,6 +178,15 @@ func main() {
 		pollInterval = 300
 	}
 
+	log.SetFormatter(&log.TextFormatter{})
+
+	// You could set this to any `io.Writer` such as a file
+	file, err := os.OpenFile("slotchecker.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err == nil {
+	 	log.SetOutput(file)
+	} else {
+	 log.Info("Failed to log to file, using default stderr")
+	}
 
 	timerCh := time.Tick(time.Duration(pollInterval) * time.Second)
 
@@ -195,22 +205,9 @@ func main() {
 			if err != nil {
 				log.Println(err)
 			}
+		} else {
+			log.Println("No slots available")
 		}
 	}
-
-	timer2 := time.Tick(time.Duration(60) * time.Minute)
-
-	for range timer2 {
-		chats, err := getSubscribers()
-		if err != nil {
-			log.Println(err)
-		}
-
-		err = notifySubscribers(chats, "Still No slots ")
-		if err != nil {
-			log.Println(err)
-		}
-	}
-
 
 }
