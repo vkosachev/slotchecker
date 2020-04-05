@@ -8,14 +8,13 @@ import (
 	"fmt"
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-	log "github.com/sirupsen/logrus"
-
 )
 
 type DayList []struct {
@@ -37,14 +36,13 @@ type sendMessageReqBody struct {
 }
 
 type Subscriber struct {
-	Id int
-	User int64
+	Id      int
+	User    int64
 	Channel int64
 }
 
-
 // Function checks slot availability and notifies bot if new slots appear
-func CheckSlots() (bool, int, error){
+func CheckSlots() (bool, int, error) {
 	url := os.Getenv("URL")
 
 	var finalUrl strings.Builder
@@ -53,7 +51,6 @@ func CheckSlots() (bool, int, error){
 	finalUrl.WriteString(fmt.Sprintf("%g", 46.9800804))
 	finalUrl.WriteString(",")
 	finalUrl.WriteString(fmt.Sprintf("%g", 28.8575673))
-
 
 	resp, err := http.Get(finalUrl.String())
 	if err != nil {
@@ -70,16 +67,16 @@ func CheckSlots() (bool, int, error){
 	}
 	err = json.Unmarshal(body, &days)
 
-	if err != nil{
+	if err != nil {
 		log.Fatalln(err)
 	}
 
 	var openSlot bool
 	var numSlots = 0
 	for _, v := range days {
-		for _, slot:= range v.Slots {
+		for _, slot := range v.Slots {
 			if slot.IsOpen {
-				openSlot=true
+				openSlot = true
 				numSlots++
 			}
 		}
@@ -87,13 +84,11 @@ func CheckSlots() (bool, int, error){
 
 	return openSlot, numSlots, err
 
-
 }
 
-func notifySubscribers(chatIDS [] int64, message string) error {
+func notifySubscribers(chatIDS []int64, message string) error {
 
-
-	for _, chat:= range chatIDS {
+	for _, chat := range chatIDS {
 		// Create the request body struct
 		reqBody := &sendMessageReqBody{
 			ChatID: chat,
@@ -123,7 +118,7 @@ func notifySubscribers(chatIDS [] int64, message string) error {
 	return nil
 }
 
-func getSubscribers() ( []int64, error) {
+func getSubscribers() ([]int64, error) {
 
 	var channels []int64
 	db, err := sql.Open("sqlite3", "./subscribers.db")
@@ -173,7 +168,7 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	pollInterval, err := strconv.ParseInt(os.Getenv("POLL_TIME"),10, 32)
+	pollInterval, err := strconv.ParseInt(os.Getenv("POLL_TIME"), 10, 32)
 	if err != nil {
 		pollInterval = 300
 	}
@@ -183,9 +178,9 @@ func main() {
 	// You could set this to any `io.Writer` such as a file
 	file, err := os.OpenFile("slotchecker.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err == nil {
-	 	log.SetOutput(file)
+		log.SetOutput(file)
 	} else {
-	 log.Info("Failed to log to file, using default stderr")
+		log.Info("Failed to log to file, using default stderr")
 	}
 
 	timerCh := time.Tick(time.Duration(pollInterval) * time.Second)
